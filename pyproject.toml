@@ -90,7 +90,7 @@ load-plugins = [
 
 [tool.pylint."MESSAGES CONTROL"]
 per-file-ignores = [
-    "test/*:F841",
+    "test/*:D100,F841",
     "lexer.py:D300,D415F841,N806"
 ]
 
@@ -117,7 +117,7 @@ ignore = ["D105", "D205"]
 #extend-ignore-names = ["Err", "NONE", "Ok", "Some"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["D103", "F841", "N802", "N806"]
+"tests/**/*" = ["D103", "D100", "F841", "N802", "N806"]
 "lexer.py" = ["D300", "D415", "F841", "N802", "N806"]
 
 [tool.ruff.lint.pydocstyle]
