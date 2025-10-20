@@ -18,12 +18,21 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ##############################################################################
 
-"""TextIndex-Ply: A PLY-based parser and index builder for TextIndex markup."""
+"""Builds a structured index from parsed TextIndex AST nodes."""
 
-__version__ = "0.1.0"
+from __future__ import annotations
 
-from .lexer import make_lexer
-from .parser import make_parser
-from .index_builder import build_index
+from typing import List
+from .ast import IndexMark
 
-__all__ = ["make_lexer", "make_parser", "build_index"]
+
+def build_index(entries: List[IndexMark]) -> str:
+    """Convert a list of index marks into a simple textual index (placeholder)."""
+    if not entries:
+        return "<p><em>No index entries found.</em></p>"
+
+    out = ["<dl class='index textindex'>"]
+    for entry in entries:
+        out.append(f"  <dt>{entry.heading}</dt>")
+    out.append("</dl>")
+    return "\n".join(out)

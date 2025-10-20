@@ -18,12 +18,12 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ##############################################################################
 
-"""TextIndex-Ply: A PLY-based parser and index builder for TextIndex markup."""
+"""Custom error and warning classes for TextIndex."""
 
-__version__ = "0.1.0"
 
-from .lexer import make_lexer
-from .parser import make_parser
-from .index_builder import build_index
+class TextIndexSyntaxError(Exception):
+    """Risen when TextIndex syntax is invalid."""
 
-__all__ = ["make_lexer", "make_parser", "build_index"]
+
+class TextIndexWarning(Warning):
+    """Risen for recoverable issues or style warnings."""

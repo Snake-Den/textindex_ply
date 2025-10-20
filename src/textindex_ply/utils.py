@@ -18,12 +18,13 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ##############################################################################
 
-"""TextIndex-Ply: A PLY-based parser and index builder for TextIndex markup."""
+"""Utility functions for TextIndex."""
 
-__version__ = "0.1.0"
+from __future__ import annotations
 
-from .lexer import make_lexer
-from .parser import make_parser
-from .index_builder import build_index
 
-__all__ = ["make_lexer", "make_parser", "build_index"]
+def strip_quotes(text: str) -> str:
+    """Remove single or double quotes from around a string."""
+    if text and len(text) > 1 and text[0] == text[-1] and text[0] in {"'", '"'}:
+        return text[1:-1]
+    return text
