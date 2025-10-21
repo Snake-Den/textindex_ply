@@ -23,7 +23,7 @@
 from __future__ import annotations
 
 import ply.yacc as yacc
-from .ast import IndexDirective, IndexMark, IndexRangeBlock
+from .ast import IndexDirective, IndexMark, IndexRangeBlock, ProcessingControl
 
 
 def make_parser() -> yacc.LRParser:
@@ -82,6 +82,14 @@ def make_parser() -> yacc.LRParser:
         | directive
         | mark"""
         p[0] = p[1]
+
+    def p_processing_control(p):
+        """directive : LBRACE CARET PLUS RBRACE
+        | LBRACE CARET MINUS RBRACE"""
+        if p[3] == "+":
+            p[0] = ProcessingControl(enabled=True)
+        else:
+            p[0] = ProcessingControl(enabled=False)
 
     def p_mark(p):
         """mark : LBRACE CARET heading_path opt_crossrefs opt_suffix opt_sort opt_flag RBRACE"""

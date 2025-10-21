@@ -23,7 +23,7 @@
 from __future__ import annotations
 
 from typing import List
-from .ast import IndexMark
+from .ast import IndexDirective, IndexMark, IndexRangeBlock, ProcessingControl
 
 
 def build_index(entries: List[IndexMark]) -> str:
@@ -36,3 +36,68 @@ def build_index(entries: List[IndexMark]) -> str:
         out.append(f"  <dt>{entry.heading}</dt>")
     out.append("</dl>")
     return "\n".join(out)
+
+
+class IndexBuilder:
+    """Constructs an index tree or entries from parsed AST nodes."""
+
+    def __init__(self):
+        self.entries = []
+        self.processing_enabled = True  # True until disabled
+
+    def process(self, nodes):
+        """Process a list of AST nodes."""
+        for node in nodes:
+            # --- Handle enable/disable directives ---
+            if isinstance(node, ProcessingControl):
+                self.processing_enabled = node.enabled
+                continue
+
+            # --- Skip everything if processing disabled ---
+            if not self.processing_enabled:
+                continue
+
+            # --- Handle AST node types ---
+            if isinstance(node, IndexMark):
+                self.handle_mark(node)
+            elif isinstance(node, IndexDirective):
+                self.handle_directive(node)
+            elif isinstance(node, IndexRangeBlock):
+                self.handle_range_block(node)
+            else:
+                # Ignore plain text and unrecognized items
+                continue
+
+    def handle_mark(self, mark: IndexMark):
+        """Handle a single index mark."""
+        self.entries.append(
+            {"type": "mark", "heading": mark.heading, "sub": mark.subheadings}
+        )
+
+    def handle_directive(self, directive: IndexDirective):
+        """Handle index directive (insert, see, etc.)."""
+        self.entries.append(
+            {
+                "type": "directive",
+                "name": directive.name,
+                "kind": directive.kind,
+            }
+        )
+
+    def handle_range_block(self, block: IndexRangeBlock):
+        """Handle a range block, respecting enable/disable state inside."""
+        if not self.processing_enabled:
+            return  # skip the whole block
+
+        # Process the block's internal content safely
+        inner_builder = IndexBuilder()
+        inner_builder.processing_enabled = self.processing_enabled
+        inner_builder.process(block.content)
+
+        self.entries.append(
+            {
+                "type": "range_block",
+                "range": block.start.args.get("range"),
+                "content": inner_builder.entries,
+            }
+        )

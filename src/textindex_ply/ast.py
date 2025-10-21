@@ -85,3 +85,12 @@ class IndexRangeBlock:
     start: IndexDirective
     content: list
     end: IndexDirective
+
+
+@dataclass
+class ProcessingControl:
+    enabled: bool  # True for {^+}, False for {^-}
+
+    def __repr__(self):
+        state = "enable" if self.enabled else "disable"
+        return f"<ProcessingControl {state}>"

@@ -94,3 +94,15 @@ def test_index_range_block():
     assert result.start.args["range"] == "A–C"
     assert result.end.kind == "close"
     assert "foo" in result.content
+
+
+def test_processing_control_parsing():
+    from textindex_ply.ast import ProcessingControl
+
+    result = parse_text("{^-}")
+    assert isinstance(result, ProcessingControl)
+    assert not result.enabled
+
+    result = parse_text("{^+}")
+    assert isinstance(result, ProcessingControl)
+    assert result.enabled

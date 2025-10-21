@@ -19,3 +19,52 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ##############################################################################
 
+from textindex_ply.ast import (
+    IndexDirective,
+    IndexMark,
+    IndexRangeBlock,
+    ProcessingControl,
+)
+from textindex_ply.index_builder import IndexBuilder
+
+
+def test_processing_control_behavior():
+    builder = IndexBuilder()
+    nodes = [
+        IndexMark(heading="A", subheadings=[]),
+        ProcessingControl(enabled=False),
+        IndexMark(heading="B", subheadings=[]),  # should be skipped
+        ProcessingControl(enabled=True),
+        IndexMark(heading="C", subheadings=[]),
+    ]
+
+    builder.process(nodes)
+    headings = [e["heading"] for e in builder.entries if e["type"] == "mark"]
+    assert headings == ["A", "C"]
+
+
+def test_processing_control_skips_range_blocks():
+    builder = IndexBuilder()
+
+    range_block = IndexRangeBlock(
+        start=IndexDirective(name="index", kind="open", args={"range": "A–C"}),
+        content=[IndexMark(heading="B", subheadings=[])],
+        end=IndexDirective(name="index", kind="close"),
+    )
+
+    nodes = [
+        IndexMark(heading="A", subheadings=[]),
+        ProcessingControl(enabled=False),
+        range_block,  # should be skipped entirely
+        ProcessingControl(enabled=True),
+        IndexMark(heading="C", subheadings=[]),
+    ]
+
+    builder.process(nodes)
+
+    entries = [
+        e for e in builder.entries if e["type"] in ("mark", "range_block")
+    ]
+    assert len(entries) == 2
+    assert entries[0]["heading"] == "A"
+    assert entries[1]["heading"] == "C" or entries[1]["type"] == "mark"
