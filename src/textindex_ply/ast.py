@@ -26,21 +26,6 @@ from typing import List, Optional
 
 
 @dataclass(slots=True)
-class IndexMark:
-    """Represents a single index mark in the document."""
-
-    heading: str
-    alias: Optional[str] = None
-    closing: bool = False
-    crossrefs: List[str] = field(default_factory=list)
-    emphasis: bool = False
-    sort_key: Optional[str] = None
-    subheadings: List[str] = field(default_factory=list)
-    suffix: Optional[str] = None
-    wildcard: Optional[str] = None
-
-
-@dataclass(slots=True)
 class IndexDirective:
     """Represents a {index ...} directive in TextIndex markup."""
 
@@ -76,6 +61,21 @@ class IndexDirective:
         if self.args:
             return f"<IndexDirective name={self.name!r} kind={self.kind!r} args={self.args}>"
         return f"<IndexDirective name={self.name!r} kind={self.kind!r}>"
+
+
+@dataclass(slots=True)
+class IndexMark:
+    """Represents a single index mark in the document."""
+
+    heading: str
+    alias: Optional[str] = None
+    closing: bool = False
+    crossrefs: List[str] = field(default_factory=list)
+    emphasis: bool = False
+    sort_key: Optional[str] = None
+    subheadings: List[str] = field(default_factory=list)
+    suffix: Optional[str] = None
+    wildcard: Optional[str] = None
 
 
 @dataclass
