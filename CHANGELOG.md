@@ -2,9 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-This file is generated from the Git commit history. Generated on 2025-10-21 14:52 local time.
+This file is generated from the Git commit history. Generated on 2025-10-21 15:11 local time.
 
 ## 2025-10-21
+- 026dfef 📝 Add start to README.md file.
+- dc006ad 📝 Add a CHANGELOG.md file.
 - 300ab83 ✨ Implement processing toggles ({^-} and {^+}) in the parser and lexer with tests
 - 69140f8 🎨 Reordered dataclasses in ast.py
 - f253694 ✔ Found and fixed tests that were failing because of __post_init__() in IndexDirective class.
