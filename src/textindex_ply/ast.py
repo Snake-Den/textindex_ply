@@ -49,15 +49,28 @@ class IndexDirective:
     args: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
-        # Automatically set kind based on args
-        if self.name == "index":
-            if "see" in self.args:
-                self.kind = "see"
-            elif "range" in self.args:
-                self.kind = "range"
-            elif "term" not in self.args and self.kind == "insert":
-                # If no term is provided but directive is {index}, keep insert
-                self.kind = self.kind
+        """
+        Determine the directive kind from suffix or args,
+        unless kind was explicitly set by the parser
+        (e.g. for open/close/force).
+        """
+        # ✅ Respect explicit non-insert kinds from parser
+        if getattr(self, "kind", None) in {"open", "close", "force"}:
+            return
+
+        # Infer kind automatically if parser didn't set a specific one
+        if getattr(self, "suffix", None) == "+":
+            self.kind = "open"
+        elif getattr(self, "suffix", None) == "-":
+            self.kind = "close"
+        elif getattr(self, "suffix", None) == "!":
+            self.kind = "force"
+        elif "see" in getattr(self, "args", {}):
+            self.kind = "see"
+        elif "range" in getattr(self, "args", {}):
+            self.kind = "range"
+        else:
+            self.kind = "insert"
 
     def __repr__(self) -> str:
         if self.args:

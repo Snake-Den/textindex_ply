@@ -102,7 +102,11 @@ def make_parser() -> yacc.LRParser:
         )
 
     def p_directive_range(p):
-        """directive : LBRACE TEXT PLUS directive_args_opt RBRACE text_elements LBRACE TEXT MINUS RBRACE"""
+        """directive : range_directive"""
+        p[0] = p[1]
+
+    def p_range_directive(p):
+        """range_directive : LBRACE TEXT PLUS directive_args_opt RBRACE text_elements LBRACE TEXT MINUS RBRACE"""
         start_name = p[2]
         end_name = p[8]
         args = p[4] or {}
@@ -126,6 +130,12 @@ def make_parser() -> yacc.LRParser:
         name = p[2]
         suffix: str = p[3]
         args = p[4] or {}
+
+        # Skip only if this is a range-style directive (has args)
+        if name == "index" and suffix == "+" and args:
+            # Let p_directive_range handle {index+ range="..."} blocks
+            # pprint(f"index+ skip: {p=}")
+            return
 
         kind = "insert"
         if suffix == "+":
