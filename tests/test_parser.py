@@ -19,7 +19,7 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ##############################################################################
 
-from textindex_ply.ast import IndexDirective
+from textindex_ply.ast import IndexDirective, IndexRangeBlock
 from textindex_ply.lexer import make_lexer
 from textindex_ply.parser import make_parser
 
@@ -84,3 +84,13 @@ def test_index_directive_basic():
 
     result = parser.parse("{index!}", lexer=lexer)
     assert result.kind == "force"
+
+
+def test_index_range_block():
+    text = '{index+ range="A–C"}foo bar{index-}'
+    result = parse_text(text)
+    assert isinstance(result, IndexRangeBlock)
+    assert result.start.kind == "open"
+    assert result.start.args["range"] == "A–C"
+    assert result.end.kind == "close"
+    assert "foo" in result.content

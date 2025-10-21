@@ -44,13 +44,31 @@ class IndexMark:
 class IndexDirective:
     """Represents a {index ...} directive in TextIndex markup."""
 
-    args: Dict[str, Any] = field(default_factory=dict)
-    kind: str = "insert"
     name: str = "index"
-    options: dict[str, str] = field(default_factory=dict)
-    raw: str = ""  # full text of the directive
+    kind: str = "insert"
+    args: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        # Automatically set kind based on args
+        if self.name == "index":
+            if "see" in self.args:
+                self.kind = "see"
+            elif "range" in self.args:
+                self.kind = "range"
+            elif "term" not in self.args and self.kind == "insert":
+                # If no term is provided but directive is {index}, keep insert
+                self.kind = self.kind
 
     def __repr__(self) -> str:
         if self.args:
-            return f"<IndexDirective {self.name} args={self.args}>"
-        return f"<IndexDirective {self.name}>"
+            return f"<IndexDirective name={self.name!r} kind={self.kind!r} args={self.args}>"
+        return f"<IndexDirective name={self.name!r} kind={self.kind!r}>"
+
+
+@dataclass
+class IndexRangeBlock:
+    """Represents an open/close index block with inner content."""
+
+    start: IndexDirective
+    content: list
+    end: IndexDirective

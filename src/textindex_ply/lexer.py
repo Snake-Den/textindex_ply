@@ -28,62 +28,63 @@ import ply.lex as lex
 def make_lexer() -> lex.Lexer:
     """Construct a PLY lexer for TextIndex."""
     tokens = (
-        "LBRACE",
-        "RBRACE",
-        "CARET",
-        "SLASH",
-        "EXCL",
-        "PIPE",
-        "PLUS",
-        "TILDE",
-        "HASH",
-        "GT",
-        "LBRACKET",
-        "RBRACKET",
-        "QUOTED",
-        "TEXT",
+        "CARET",  # ^
+        "EQUALS",  # =
+        "EXCL",  # !
+        "GT",  # >
+        "HASH",  # #
+        "LBRACE",  # {
+        "LBRACKET",  # [
+        "MINUS",  # -
+        "PIPE",  # |
+        "PLUS",  # +
+        "QUOTED",  # "text" or 'text'
+        "RBRACE",  # }
+        "RBRACKET",  # ]
+        "SLASH",  # /
+        "TEXT",  # identifiers
+        "TILDE",  # ~
     )
 
-    t_LBRACE = r"\{"
-    t_RBRACE = r"\}"
+    # --- Token regex patterns ---
     t_CARET = r"\^"
-    t_SLASH = r"/"
+    t_EQUALS = r"="
     t_EXCL = r"!"
+    t_GT = r">"
+    t_HASH = r"\#"
+    t_LBRACE = r"\{"
+    t_LBRACKET = r"\["
+    t_MINUS = r"\-"
     t_PIPE = r"\|"
     t_PLUS = r"\+"
-    t_TILDE = r"~"
-    t_HASH = r"\#"
-    t_GT = r">"
-    t_LBRACKET = r"\["
+    t_RBRACE = r"\}"
     t_RBRACKET = r"\]"
-    t_ignore = " \t"
+    t_SLASH = r"/"
+    t_TEXT = r"[A-Za-z0-9_]+"
+    t_TILDE = r"~"
 
-    # Explicit quote token rules — PLY-safe
-    def t_DQUOTE_STRING(t):
-        r'"(?:\\.|[^"\\])*"'
-        t.type = "QUOTED"
+    # Ignore spaces, tabs, carriage returns
+    t_ignore = " \t\r"
+
+    # --- Quoted strings (single or double) ---
+    def t_QUOTED(t):
+        r'(?:"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\')'
+        # Strip surrounding quotes
         t.value = t.value[1:-1]
         return t
 
-    def t_SQUOTE_STRING(t):
-        r"'(?:\\.|[^'\\])*'"
-        t.type = "QUOTED"
-        t.value = t.value[1:-1]
-        return t
-
+    # --- Optional wildcard recognition (treated as TEXT) ---
     def t_WILDCARD(t):
         r"\*\*|\*\^\-|\*\^|\*"
         t.type = "TEXT"
         return t
 
-    def t_TEXT(t):
-        r"[^{}\[\]>|+~#/\^!\s]+"
-        return t
-
+    # --- Line counting ---
     def t_newline(t):
         r"\n+"
         t.lexer.lineno += len(t.value)
 
+    # --- Error handling ---
     def t_error(t):
         print(f"Illegal character {t.value[0]!r} at line {t.lexer.lineno}")
         t.lexer.skip(1)

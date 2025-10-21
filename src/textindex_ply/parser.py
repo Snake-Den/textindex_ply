@@ -23,26 +23,28 @@
 from __future__ import annotations
 
 import ply.yacc as yacc
-from .ast import IndexDirective, IndexMark
+from .ast import IndexDirective, IndexMark, IndexRangeBlock
 
 
 def make_parser() -> yacc.LRParser:
     """Create the PLY parser."""
     tokens = (
-        "LBRACE",
-        "RBRACE",
         "CARET",
-        "SLASH",
+        "EQUALS",
         "EXCL",
-        "PIPE",
-        "PLUS",
-        "TILDE",
         "HASH",
         "GT",
+        "LBRACE",
         "LBRACKET",
-        "RBRACKET",
+        "MINUS",
+        "PIPE",
+        "PLUS",
         "QUOTED",
+        "RBRACE",
+        "RBRACKET",
+        "SLASH",
         "TEXT",
+        "TILDE",
     )
 
     # ------------------------------
@@ -50,8 +52,35 @@ def make_parser() -> yacc.LRParser:
     # ------------------------------
 
     def p_start(p):
-        """start : mark
-        | directive"""
+        """start : directive
+        | mark
+        | text_elements"""
+        # Simplify result for single-item lists
+        if isinstance(p[1], list):
+            if len(p[1]) == 1 and isinstance(p[1][0], IndexRangeBlock):
+                p[0] = p[1][0]
+            elif len(p[1]) == 1:
+                p[0] = p[1][0]
+            else:
+                p[0] = p[1]
+        else:
+            p[0] = p[1]
+
+    def p_text_elements(p):
+        """text_elements : text_elements text_element
+        | text_element
+        | empty"""
+        if len(p) == 3:
+            p[0] = p[1] + [p[2]]
+        elif len(p) == 2 and p[1] is not None:
+            p[0] = [p[1]]
+        else:
+            p[0] = []
+
+    def p_text_element(p):
+        """text_element : TEXT
+        | directive
+        | mark"""
         p[0] = p[1]
 
     def p_mark(p):
@@ -72,12 +101,75 @@ def make_parser() -> yacc.LRParser:
             wildcard=wildcard,
         )
 
-    def p_directive(p):
-        """directive : LBRACE TEXT RBRACE"""
-        # Matches things like {index}
-        # Later, we’ll extend this to handle arguments, e.g. {index term="foo"}
+    def p_directive_range(p):
+        """directive : LBRACE TEXT PLUS directive_args_opt RBRACE text_elements LBRACE TEXT MINUS RBRACE"""
+        start_name = p[2]
+        end_name = p[8]
+        args = p[4] or {}
+        content = p[6]
 
-        p[0] = IndexDirective(name=p[2])
+        if start_name == "index" and end_name == "index":
+            start = IndexDirective(name="index", kind="open", args=args)
+            end = IndexDirective(name="index", kind="close")
+            p[0] = IndexRangeBlock(start=start, content=content, end=end)
+        else:
+            print(
+                f"Syntax error: mismatched range block {start_name}/{end_name}"
+            )
+            p[0] = None
+
+    def p_directive(p):
+        """
+        directive : LBRACE TEXT directive_suffix directive_args_opt RBRACE
+        """
+
+        name = p[2]
+        suffix: str = p[3]
+        args = p[4] or {}
+
+        kind = "insert"
+        if suffix == "+":
+            kind = "open"
+        elif suffix == "-":
+            kind = "close"
+        elif suffix == "!":
+            kind = "force"
+        elif "see" in args:
+            kind = "see"
+
+        p[0] = IndexDirective(name=name, kind=kind, args=args)
+
+    def p_directive_suffix(p):
+        """
+        directive_suffix : PLUS
+                         | MINUS
+                         | EXCL
+                         | empty
+        """
+        p[0] = p[1] if len(p) > 1 else ""
+
+    def p_directive_args_opt(p):
+        """
+        directive_args_opt : directive_args
+                           | empty
+        """
+        p[0] = p[1]
+
+    def p_directive_args(p):
+        """
+        directive_args : directive_args arg
+                       | arg
+        """
+        if len(p) == 2:
+            p[0] = p[1]
+        else:
+            p[0] = {**p[1], **p[2]}
+
+    def p_arg(p):
+        """
+        arg : TEXT EQUALS QUOTED
+        """
+        p[0] = {p[1]: p[3]}
 
     def p_heading_path(p):
         """heading_path : heading_part
@@ -141,7 +233,7 @@ def make_parser() -> yacc.LRParser:
 
     def p_empty(p):
         """empty :"""
-        p[0] = None
+        p[0] = {}
 
     def p_error(p):
         if p:
