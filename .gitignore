@@ -23,3 +23,9 @@ htmlcov/
 
 # Adding to avoid thrashing during development
 parsetab.py
+
+# temp dev files
+.output.txt
+tests.txt
+textindex-docs.txt
+textindex_ply_HEAD.zip
