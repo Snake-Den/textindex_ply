@@ -21,6 +21,7 @@
 """AST node definitions for TextIndex markup."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -37,25 +38,31 @@ class IndexDirective:
         """
         Determine the directive kind from suffix or args,
         unless kind was explicitly set by the parser
-        (e.g. for open/close/force).
+        (e.g., for open/close/force).
         """
         # ✅ Respect explicit non-insert kinds from parser
         if getattr(self, "kind", None) in {"open", "close", "force"}:
             return
 
         # Infer kind automatically if parser didn't set a specific one
-        if getattr(self, "suffix", None) == "+":
-            self.kind = "open"
-        elif getattr(self, "suffix", None) == "-":
-            self.kind = "close"
-        elif getattr(self, "suffix", None) == "!":
-            self.kind = "force"
-        elif "see" in getattr(self, "args", {}):
-            self.kind = "see"
-        elif "range" in getattr(self, "args", {}):
-            self.kind = "range"
-        else:
-            self.kind = "insert"
+        suffix = getattr(self, "suffix", None)
+        args = getattr(self, "args", {})
+
+        self.kind = (
+            "open"
+            if suffix == "+"
+            else "close"
+            if suffix == "-"
+            else "force"
+            if suffix == "!"
+            else "seealso"
+            if "seealso" in args
+            else "see"
+            if "see" in args
+            else "range"
+            if "range" in args
+            else "insert"
+        )
 
     def __repr__(self) -> str:
         if self.args:
