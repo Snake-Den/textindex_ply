@@ -1,0 +1,240 @@
+diff --git a/src/textindex_ply/index_builder.py b/src/textindex_ply/index_builder.py
+index a707791..31fc38a 100644
+--- a/src/textindex_ply/index_builder.py
++++ b/src/textindex_ply/index_builder.py
+@@ -40,91 +40,135 @@ def build_index(entries: List[IndexMark]) -> str:
+
+
+ class IndexBuilder:
+-    """Constructs structured index entries from parsed AST nodes."""
++    """Walks the parsed AST and converts it into structured index entries.
++    Handles index directives, marks, range blocks, and processing control.
++    """
+
+     def __init__(self):
+         self.entries = []
++        self.index: dict[str, dict] = {}
+         self.processing_enabled = True
+
++    # ------------------------------------------------------------------
++    # Primary entry point
++    # ------------------------------------------------------------------
+     def process(self, nodes):
+         """Process a list of AST nodes."""
+         for node in nodes:
+-            # --- Enable/disable sections ---
+-            if isinstance(node, ProcessingControl):
+-                self.processing_enabled = node.enabled
+-                continue
++            match node:
++                # ✅ Toggle processing state on/off
++                case ProcessingControl(enabled=enabled):
++                    self.processing_enabled = enabled
++                    continue
+
+-            if not self.processing_enabled:
+-                continue
+-
+-            # --- Dispatch by node type ---
+-            if isinstance(node, IndexMark):
+-                self.handle_mark(node)
+-            elif isinstance(node, IndexDirective):
+-                self.handle_directive(node)
+-            elif isinstance(node, IndexRangeBlock):
+-                self.handle_range_block(node)
++                # ✅ Skip all other nodes while disabled
++                case _ if not self.processing_enabled:
++                    continue
++                # ✅ Dispatch based on node type
++                case IndexDirective():
++                    self.handle_directive(node)
++                case IndexMark():
++                    self.handle_mark(node)
++                case IndexRangeBlock():
++                    self.handle_range_block(node)
++                case _:
++                    self.entries.append(
++                        {"type": "unknown", "value": repr(node)}
++                    )
+
+-    # ------------------------------------------------------------------
+-    # Individual node handlers
+-    # ------------------------------------------------------------------
+     def handle_directive(self, directive: IndexDirective):
+-        """Handle {index...} directives of various kinds using match/case."""
++        """Handle {index...} directives using Python match/case."""
+         args = directive.args or {}
+
+-        # helper
+         def arg_value(*keys: str) -> str | None:
++            """Return the first matching argument value."""
+             for key in keys:
+                 if key in args:
+                     return args[key]
+             return None
+
+         match directive.kind:
++            # Basic index entry directive
+             case "insert" | "open" | "close" | "force":
+-                self.entries.append(
+-                    {
+-                        "type": "directive",
+-                        "kind": directive.kind,
+-                        "name": directive.name,
+-                        "args": args,
+-                    }
+-                )
++                entry = {
++                    "type": "directive",
++                    "kind": directive.kind,
++                    "name": directive.name,
++                    "args": args,
++                }
++
++            # Range directive (e.g., {index range="A–C"})
+             case "range":
+-                self.entries.append(
+-                    {
+-                        "type": "range",
+-                        "name": directive.name,
+-                        "label": arg_value("range"),  # ✅ add label field
+-                        "args": args,
+-                    }
+-                )
++                entry = {
++                    "type": "range",
++                    "name": directive.name,
++                    "label": arg_value("range"),
++                    "args": args,
++                }
++
++            # Cross-reference directive (see / seealso)
+             case "see" | "seealso":
+-                self.entries.append(
+-                    {
+-                        "type": "xref",
+-                        "xref_kind": directive.kind,  # ✅ ensure both see & seealso covered
+-                        "target": arg_value(directive.kind),
+-                        "args": args,
+-                    }
+-                )
++                entry = {
++                    "type": "xref",
++                    "xref_kind": directive.kind,
++                    "target": args.get(directive.kind),
++                }
++
++            # Processing control (enable / disable)
++            case "disable":
++                self.enabled = False
++                entry = {"type": "control", "action": "disable"}
++
++            case "enable":
++                self.enabled = True
++                entry = {"type": "control", "action": "enable"}
++
++            # Unknown directive fallback
+             case _:
+-                self.entries.append(
+-                    {
+-                        "type": "unknown_directive",
+-                        "kind": directive.kind,
+-                        "args": args,
+-                    }
+-                )
++                entry = {
++                    "type": "unknown_directive",
++                    "kind": directive.kind,
++                    "args": directive.args,
++                }
++
++        self.entries.append(entry)
+
+     def handle_mark(self, mark: IndexMark):
+-        """Handle a {mark} tag."""
+-        self.entries.append(
+-            {
+-                "type": "mark",
+-                "heading": mark.heading,
+-                "subheadings": mark.subheadings,
+-            }
+-        )
++        """Handle ^ marks and convert to index entries."""
++        # Ensure subheadings is always a list
++        if not isinstance(mark.subheadings, list):
++            mark.subheadings = []
++
++        # Record the mark itself
++        entry = {
++            "type": "mark",
++            "heading": mark.heading,
++            "subheadings": mark.subheadings,
++            "crossrefs": mark.crossrefs,
++            "suffix": mark.suffix,
++            "sort_key": mark.sort_key,
++            "emphasis": mark.emphasis,
++            "closing": mark.closing,
++            "alias": mark.alias,
++            "wildcard": mark.wildcard,
++        }
++        self.entries.append(entry)
++
++        # --- Build hierarchical index structure ---
++        full_path = [mark.heading] + list(mark.subheadings or [])
++        current = self.index
++
++        for i, part in enumerate(full_path):
++            # Create missing branch node
++            if part not in current:
++                current[part] = {}
++
++            # Move into the next level
++            current = current[part]
++
++            # Ensure that for the last node, we still have a dict container
++            if i == len(full_path) - 1 and not isinstance(current, dict):
++                current = {}
+
+     def handle_node(self, node):
+         """Dispatch handler based on node type."""
+@@ -139,23 +183,92 @@ class IndexBuilder:
+                 # Ignore or handle unexpected nodes gracefully
+                 pass
+
+-    def handle_range_block(self, block: "IndexRangeBlock"):
+-        """Handle range blocks like {index+ range="A–C"}...{index-}."""
+-        start_label = block.start.args.get("range") if block.start else None
+-        entry = {
+-            "type": "range_block",
+-            "label": start_label,
+-            "content": [],
+-        }
++    def handle_range_block(self, block: IndexRangeBlock):
++        """Handle {index+ ...}{index-} range blocks."""
++        label = block.start.args.get("range") or block.start.args.get("label")
+
+-        # Recursively process inner content
+-        for element in block.content:
+-            if isinstance(
+-                element, (IndexDirective, IndexMark, IndexRangeBlock)
+-            ):
+-                self.handle_node(element)
+-                entry["content"].append(self.entries[-1])
+-            elif isinstance(element, str):
+-                entry["content"].append({"type": "text", "value": element})
++        # Normalize the block’s content
++        normalized_content = []
++        for c in block.content:
++            if isinstance(c, str):
++                normalized_content.append({"type": "text", "value": c})
++            elif isinstance(c, dict):
++                normalized_content.append(c)
++            else:
++                normalized_content.append({"type": "node", "value": repr(c)})
+
+-        self.entries.append(entry)
++        self.entries.append(
++            {
++                "type": "range_block",
++                "label": label,
++                "start": block.start.args.get("range"),

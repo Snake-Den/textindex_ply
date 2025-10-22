@@ -23,7 +23,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass(slots=True)
@@ -72,7 +72,12 @@ class IndexDirective:
 
 @dataclass(slots=True)
 class IndexMark:
-    """Represents a single index mark in the document."""
+    """Represents a single index mark in the document.
+
+    Fields are ordered with 'heading' first (no default), and the rest in
+    alphabetical order for consistency and predictable dataclass tuple
+    behavior.
+    """
 
     heading: str
     alias: Optional[str] = None

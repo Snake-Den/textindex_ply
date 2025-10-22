@@ -2,7 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-This file is generated from the Git commit history. Generated on 2025-10-21 15:11 local time.
+This file is generated from the Git commit history. Generated on 2025-10-22 09:57 local time.
+
+## 2025-10-22
+- ✨ Build hierarchical index structure and finalize grouping/sorting/merging in IndexBuilder; add new tests; minor AST typing/docstring improvements.
 
 ## 2025-10-21
 - 026dfef 📝 Add start to README.md file.

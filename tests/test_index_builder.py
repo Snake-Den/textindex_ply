@@ -125,3 +125,125 @@ def test_index_builder_range_block():
     )
     assert entry["content"][0]["value"] == "alpha"
     assert entry["content"][1]["value"] == "beta"
+
+
+def test_index_builder_finalize_groups_and_sorts():
+    builder = IndexBuilder()
+    builder.entries = [
+        {"type": "directive", "args": {"term": "banana"}},
+        {"type": "directive", "args": {"term": "apple"}},
+        {"type": "directive", "args": {"term": "avocado"}},
+    ]
+    result = builder.finalize()
+    assert "A" in result
+    assert "B" in result
+    assert [e["args"]["term"] for e in result["A"]] == ["apple", "avocado"]
+
+
+def test_index_builder_merge_duplicates():
+    builder = IndexBuilder()
+    builder.entries = [
+        {"type": "directive", "args": {"term": "Apple"}},
+        {"type": "directive", "args": {"term": "Apple"}},
+    ]
+    grouped = builder.finalize()
+    assert len(grouped["A"]) == 1
+    assert "refs" in grouped["A"][0]
+
+
+def test_index_builder_hierarchy_basic():
+    """Ensure hierarchical paths are inserted correctly into
+    IndexBuilder.index.
+    """
+    builder = IndexBuilder()
+
+    # Simulate hierarchical marks: ^Fruit>Citrus>Oranges and ^Fruit>Apples
+    mark1 = IndexMark(
+        heading="Fruit",
+        subheadings=["Citrus", "Oranges"],
+        crossrefs=[],
+        suffix=None,
+        sort_key=None,
+        emphasis=False,
+        closing=False,
+        alias=None,
+        wildcard=None,
+    )
+    mark2 = IndexMark(
+        heading="Fruit",
+        subheadings=["Apples"],
+        crossrefs=[],
+        suffix=None,
+        sort_key=None,
+        emphasis=False,
+        closing=False,
+        alias=None,
+        wildcard=None,
+    )
+
+    builder.process([mark1, mark2])
+
+    # Top-level heading should exist
+    assert "Fruit" in builder.index
+
+    # Nested structure under Fruit should have both Citrus and Apples
+    fruit_index = builder.index["Fruit"]
+    assert "Citrus" in fruit_index
+    assert "Apples" in fruit_index
+
+    # Verify deeper nesting under Citrus → Oranges
+    assert "Oranges" in fruit_index["Citrus"]
+    assert builder.index["Fruit"]["Citrus"]["Oranges"] == {}
+
+
+def test_index_builder_hierarchy_multiple_branches():
+    """Test that unrelated hierarchies are kept separate."""
+    builder = IndexBuilder()
+
+    mark_a = IndexMark(
+        heading="Animals",
+        subheadings=["Mammals", "Dogs"],
+        crossrefs=[],
+        suffix=None,
+        sort_key=None,
+        emphasis=False,
+        closing=False,
+        alias=None,
+        wildcard=None,
+    )
+    mark_b = IndexMark(
+        heading="Animals",
+        subheadings=["Birds", "Parrots"],
+        crossrefs=[],
+        suffix=None,
+        sort_key=None,
+        emphasis=False,
+        closing=False,
+        alias=None,
+        wildcard=None,
+    )
+    mark_c = IndexMark(
+        heading="Plants",
+        subheadings=["Trees", "Oak"],
+        crossrefs=[],
+        suffix=None,
+        sort_key=None,
+        emphasis=False,
+        closing=False,
+        alias=None,
+        wildcard=None,
+    )
+
+    builder.process([mark_a, mark_b, mark_c])
+
+    # Verify that Animals and Plants are distinct roots
+    assert set(builder.index.keys()) == {"Animals", "Plants"}
+
+    # Each branch should contain proper subpaths
+    assert "Mammals" in builder.index["Animals"]
+    assert "Birds" in builder.index["Animals"]
+    assert "Trees" in builder.index["Plants"]
+
+    # Deepest nodes should be empty dicts
+    assert builder.index["Animals"]["Mammals"]["Dogs"] == {}
+    assert builder.index["Plants"]["Trees"]["Oak"] == {}
