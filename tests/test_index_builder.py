@@ -68,3 +68,60 @@ def test_processing_control_skips_range_blocks():
     assert len(entries) == 2
     assert entries[0]["heading"] == "A"
     assert entries[1]["heading"] == "C" or entries[1]["type"] == "mark"
+
+
+def test_basic_index_entry():
+    builder = IndexBuilder()
+    builder.process([IndexMark(heading="Foo", subheadings=["Bar"])])
+    assert builder.entries[0]["heading"] == "Foo"
+    assert builder.entries[0]["subheadings"] == ["Bar"]
+
+
+def test_index_directive_see_and_seealso():
+    builder = IndexBuilder()
+    see_dir = IndexDirective(name="index", kind="see", args={"see": "Bar"})
+    seealso_dir = IndexDirective(
+        name="index", kind="seealso", args={"seealso": "Baz"}
+    )
+    builder.process([see_dir, seealso_dir])
+
+    see_entry = builder.entries[0]
+    seealso_entry = builder.entries[1]
+
+    assert see_entry["type"] == "xref"
+    assert see_entry["xref_kind"] == "see"
+    assert see_entry["target"] == "Bar"
+
+    assert seealso_entry["xref_kind"] == "seealso"
+    assert seealso_entry["target"] == "Baz"
+
+
+def test_index_directive_range():
+    builder = IndexBuilder()
+    dir = IndexDirective(name="index", kind="range", args={"range": "A–C"})
+    builder.process([dir])
+    assert builder.entries[0]["type"] == "range"
+    assert builder.entries[0]["label"] == "A–C"
+
+
+def test_index_builder_range_block():
+    """Ensure IndexBuilder correctly processes a range block."""
+    start = IndexDirective(name="index", kind="open", args={"range": "A–C"})
+    end = IndexDirective(name="index", kind="close")
+    block = IndexRangeBlock(start=start, content=["alpha", "beta"], end=end)
+
+    builder = IndexBuilder()
+    builder.handle_node(block)
+
+    assert builder.entries, "No entries were recorded"
+    entry = builder.entries[-1]
+
+    # Check that the entry was interpreted as a range block
+    assert entry["type"] == "range_block"
+    assert entry["label"] == "A–C"
+    assert any(
+        isinstance(c, dict) and c.get("type") == "text"
+        for c in entry["content"]
+    )
+    assert entry["content"][0]["value"] == "alpha"
+    assert entry["content"][1]["value"] == "beta"
